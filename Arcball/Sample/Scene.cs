@@ -22,15 +22,22 @@ namespace Arcball
         Vector3[] _vertices = Teapot.Vertices;
         uint[] _indices = Teapot.Indices;
 
+        Vector3[] _circlePts;
+
         bool _isMousePosInScreen;
 
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
 
+            Title = "Arcball";
+
             // set arcball camera
             CalculateSphereInfo(out Vector3 center, out float radius);
-            _camera = new ArcballCamera(center, radius, Width, Height);
+            _camera = new ArcballCamera(center, Width, Height);
+            _camera.InitDefaultPosition(radius);
+
+            _circlePts = GetPointsOnCircle(center, 100);
 
             // generate buffer of teapot model
             GL.GenVertexArrays(1, out _vao);
@@ -91,11 +98,15 @@ namespace Arcball
         {
             base.OnResize(e);
 
-            int viewVolumn = 100;
+            int viewVolume = 100;
+
+            float aspect = 1.0f * Width / Height;
+
             GL.Viewport(0, 0, Width, Height);
 
             GL.MatrixMode(MatrixMode.Projection);
-            GL.Ortho(-viewVolumn, viewVolumn, -viewVolumn, viewVolumn, -viewVolumn, viewVolumn);
+            GL.LoadIdentity();
+            GL.Ortho(-viewVolume * aspect, viewVolume * aspect, -viewVolume, viewVolume, viewVolume, -viewVolume);
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
@@ -107,6 +118,7 @@ namespace Arcball
 
             GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
 
+            GL.PushMatrix();
             GL.MatrixMode(MatrixMode.Modelview);
             var viewMatrix = _camera.ViewMatrix;
             GL.LoadMatrix(ref viewMatrix);
@@ -116,8 +128,32 @@ namespace Arcball
 
             // unbind
             GL.BindVertexArray(0);
+            GL.PopMatrix();            
+
+            // draw circle
+            GL.Begin(PrimitiveType.Lines);
+            {
+                Array.ForEach(_circlePts, pt => GL.Vertex3(pt));
+            }
+            GL.End();
 
             SwapBuffers();
+        }
+
+        public Vector3[] GetPointsOnCircle(Vector3 center, float radius)
+        {
+            var pts = new List<Vector3>();
+            var angle = (360 / 180);
+            var radian = angle * Math.PI / 180;
+
+            for(int i = 0; i < 180; i++)
+            {
+                var x = (float)(center.X + radius * Math.Cos(radian * i));
+                var y = (float)(center.Y + radius * Math.Sin(radian * i));
+                pts.Add(new Vector3(x, y, 0));
+            }
+
+            return pts.ToArray();
         }
 
         /// <summary>
